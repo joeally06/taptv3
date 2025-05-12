@@ -1,0 +1,190 @@
+---
+import Layout from '../../../../layouts/Layout.astro';
+import AdminNav from '../../../../components/AdminNav.astro';
+import { getLatestConference, updateConference } from '../../../../lib/db';
+
+// Check authentication
+const userCookie = Astro.cookies.get('user');
+let user = null;
+try {
+  user = userCookie ? JSON.parse(userCookie.value) : null;
+} catch (error) {
+  console.error('Error parsing user cookie:', error);
+}
+
+if (!user || user.role !== 'admin') {
+  return Astro.redirect('/login');
+}
+
+// Get conference data
+const { id } = Astro.params;
+let conference = null;
+let error = null;
+
+try {
+  conference = await getLatestConference();
+  if (!conference || conference.id !== id) {
+    return Astro.redirect('/admin/conferences');
+  }
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load conference data';
+}
+---
+
+<Layout title="Edit Conference">
+  <AdminNav currentPath="/admin/conferences" />
+  
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+      <h1 class="text-2xl font-bold text-gray-900 mb-8">Edit Conference</h1>
+
+      {error && (
+        <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+          <p class="text-red-700">{error}</p>
+        </div>
+      )}
+
+      {conference && (
+        <form id="conference-form" class="space-y-6" data-conference-id={conference.id}>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Conference Name *</label>
+            <input
+              type="text"
+              name="name"
+              required
+              value={conference.name}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+              <input
+                type="date"
+                name="start_date"
+                required
+                value={new Date(conference.start_date).toISOString().split('T')[0]}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
+              <input
+                type="date"
+                name="end_date"
+                required
+                value={new Date(conference.end_date).toISOString().split('T')[0]}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Location *</label>
+            <input
+              type="text"
+              name="location"
+              required
+              value={conference.location}
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Price *</label>
+              <input
+                type="number"
+                name="price"
+                required
+                min="0"
+                step="0.01"
+                value={conference.price}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-2">Maximum Attendees</label>
+              <input
+                type="number"
+                name="max_attendees"
+                min="1"
+                value={conference.max_attendees}
+                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Description</label>
+            <textarea
+              name="description"
+              rows="4"
+              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >{conference.description}</textarea>
+          </div>
+
+          <div class="flex justify-end space-x-4">
+            <a 
+              href="/admin/conferences"
+              class="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </a>
+            <button
+              type="submit"
+              class="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      )}
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { updateConference } from '../../../../lib/db';
+
+  const form = document.getElementById('conference-form') as HTMLFormElement;
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    try {
+      const formData = new FormData(form);
+      const data = Object.fromEntries(formData);
+      const conferenceId = form.dataset.conferenceId;
+      
+      if (!conferenceId) {
+        throw new Error('Conference ID is missing');
+      }
+
+      // Convert dates to ISO format
+      if (data.start_date) {
+        data.start_date = new Date(data.start_date as string).toISOString();
+      }
+      if (data.end_date) {
+        data.end_date = new Date(data.end_date as string).toISOString();
+      }
+      
+      // Convert price to number
+      if (data.price) {
+        data.price = parseFloat(data.price as string);
+      }
+      
+      // Convert max_attendees to number if provided
+      if (data.max_attendees) {
+        data.max_attendees = parseInt(data.max_attendees as string);
+      }
+
+      await updateConference(conferenceId, data);
+      window.location.href = '/admin/conferences';
+    } catch (error) {
+      console.error('Error updating conference:', error);
+      alert('Failed to update conference. Please try again.');
+    }
+  });
+</script>

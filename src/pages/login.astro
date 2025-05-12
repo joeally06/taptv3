@@ -1,0 +1,210 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+// Check if user is already logged in
+const userCookie = Astro.cookies.get('sb-access-token');
+if (userCookie?.value) {
+  return Astro.redirect('/admin');
+}
+---
+
+<Layout title="Login">
+  <div class="min-h-screen flex flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-md w-full space-y-8">
+      <div>
+        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          Sign in to your account
+        </h2>
+      </div>
+      
+      <div id="debug-panel" class="bg-gray-100 p-4 rounded-md text-sm font-mono overflow-auto max-h-96">
+        <div class="flex justify-between items-center mb-2">
+          <h3 class="font-bold">Authentication Debug Log</h3>
+          <button id="clear-debug" class="text-xs text-gray-600 hover:text-gray-800">Clear</button>
+        </div>
+        <div id="debug-log" class="space-y-1"></div>
+      </div>
+
+      <div id="error-message" class="hidden bg-red-50 border-l-4 border-red-400 p-4 text-red-700"></div>
+
+      <form id="login-form" class="mt-8 space-y-6">
+        <div class="rounded-md shadow-sm -space-y-px">
+          <div>
+            <label for="email" class="sr-only">Email address</label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+              placeholder="Email address"
+            />
+          </div>
+          <div>
+            <label for="password" class="sr-only">Password</label>
+            <input
+              id="password"
+              name="password"
+              type="password"
+              required
+              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-primary-500 focus:border-primary-500 focus:z-10 sm:text-sm"
+              placeholder="Password"
+            />
+          </div>
+        </div>
+
+        <div>
+          <button
+            type="submit"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+          >
+            Sign in
+          </button>
+        </div>
+      </form>
+
+      <div id="session-info" class="mt-4 p-4 bg-gray-100 rounded-md hidden">
+        <h3 class="font-bold mb-2">Current Session Info</h3>
+        <pre id="session-data" class="text-xs overflow-auto"></pre>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  import { createClient } from '@supabase/supabase-js';
+
+  const form = document.getElementById('login-form') as HTMLFormElement;
+  const errorMessage = document.getElementById('error-message');
+  const debugLog = document.getElementById('debug-log');
+  const clearDebugButton = document.getElementById('clear-debug');
+  const sessionInfo = document.getElementById('session-info');
+  const sessionData = document.getElementById('session-data');
+
+  function showError(message: string) {
+    if (errorMessage) {
+      errorMessage.textContent = message;
+      errorMessage.classList.remove('hidden');
+    }
+  }
+
+  function hideError() {
+    if (errorMessage) {
+      errorMessage.classList.add('hidden');
+    }
+  }
+
+  function addDebugLog(message: string, type: 'info' | 'error' | 'success' = 'info') {
+    if (debugLog) {
+      const entry = document.createElement('div');
+      entry.className = `text-xs ${
+        type === 'error' ? 'text-red-600' : 
+        type === 'success' ? 'text-green-600' : 
+        'text-gray-600'
+      }`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+      debugLog.appendChild(entry);
+      debugLog.scrollTop = debugLog.scrollHeight;
+    }
+  }
+
+  function updateSessionInfo(session: any) {
+    if (sessionInfo && sessionData) {
+      sessionInfo.classList.remove('hidden');
+      sessionData.textContent = JSON.stringify(session, null, 2);
+    }
+  }
+
+  clearDebugButton?.addEventListener('click', () => {
+    if (debugLog) {
+      debugLog.innerHTML = '';
+    }
+  });
+
+  // Check for existing session on page load
+  window.addEventListener('load', async () => {
+    try {
+      addDebugLog('Checking for existing session...');
+      const supabase = createClient(
+        import.meta.env.PUBLIC_SUPABASE_URL,
+        import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+      );
+
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        addDebugLog(`Session check error: ${error.message}`, 'error');
+      } else if (session) {
+        addDebugLog('Found existing session', 'success');
+        updateSessionInfo(session);
+      } else {
+        addDebugLog('No existing session found');
+      }
+    } catch (error) {
+      addDebugLog(`Session check failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  });
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    
+    try {
+      const formData = new FormData(form);
+      const email = formData.get('email')?.toString();
+      const password = formData.get('password')?.toString();
+
+      if (!email || !password) {
+        showError('Please fill in all fields');
+        addDebugLog('Login attempt failed: Missing email or password', 'error');
+        return;
+      }
+
+      addDebugLog('Creating Supabase client...');
+      const supabase = createClient(
+        import.meta.env.PUBLIC_SUPABASE_URL,
+        import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+      );
+
+      addDebugLog(`Attempting sign in for ${email}...`);
+      const { data: { session }, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (signInError) {
+        addDebugLog(`Sign in error: ${signInError.message}`, 'error');
+        throw signInError;
+      }
+
+      if (!session?.user) {
+        addDebugLog('No session or user data returned', 'error');
+        throw new Error('Authentication failed');
+      }
+
+      addDebugLog('Sign in successful, getting user data...', 'success');
+      updateSessionInfo(session);
+
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        addDebugLog(`Error getting user data: ${userError?.message}`, 'error');
+        throw userError || new Error('Failed to get user data');
+      }
+
+      addDebugLog(`User metadata: ${JSON.stringify(user.user_metadata)}`, 'info');
+      const isAdmin = user.user_metadata?.role === 'admin';
+      
+      if (!isAdmin) {
+        addDebugLog('Access denied: User is not an admin', 'error');
+        throw new Error('Access denied: User is not an admin');
+      }
+
+      addDebugLog('Admin access confirmed, redirecting...', 'success');
+      window.location.href = '/admin';
+    } catch (error) {
+      console.error('Login error:', error);
+      showError('Invalid email or password');
+      addDebugLog(`Login failed: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
+    }
+  });
+</script>

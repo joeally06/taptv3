@@ -1,0 +1,142 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import AdminNav from '../../components/AdminNav.astro';
+import { getLatestConference, getBoardMembers, getHallOfFameNominations } from '../../lib/db';
+import { supabase } from '../../lib/supabase';
+
+// Check authentication
+const authCookie = Astro.cookies.get('sb-access-token');
+let user = null;
+
+if (authCookie?.value) {
+  try {
+    const { data: { user: authUser }, error } = await supabase.auth.getUser(authCookie.value);
+    if (!error && authUser?.user_metadata?.role === 'admin') {
+      user = authUser;
+    } else {
+      console.error('Auth error or not admin:', error || 'Not admin');
+    }
+  } catch (error) {
+    console.error('Error checking authentication:', error);
+  }
+}
+
+if (!user) {
+  return Astro.redirect('/login');
+}
+
+// Fetch data for dashboard
+let conference = null;
+let boardMembers = [];
+let nominations = [];
+let error = null;
+
+try {
+  [conference, boardMembers, nominations] = await Promise.all([
+    getLatestConference(),
+    getBoardMembers(),
+    getHallOfFameNominations()
+  ]);
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load dashboard data';
+}
+---
+
+<Layout title="Admin Dashboard">
+  <AdminNav currentPath="/admin" />
+  
+  <div class="container mx-auto px-4 py-8">
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
+      <p class="text-gray-600 mt-2">Welcome back, {user.email}</p>
+    </div>
+
+    {error && (
+      <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+        <p class="text-red-700">{error}</p>
+      </div>
+    )}
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Conference Management Card -->
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-primary-700">Conference</h2>
+          <a href="/admin/conferences" class="text-primary-600 hover:text-primary-800">
+            Manage
+          </a>
+        </div>
+        {conference ? (
+          <div>
+            <p class="text-gray-600 mb-2">{conference.name}</p>
+            <p class="text-sm text-gray-500">
+              {new Date(conference.start_date).toLocaleDateString()} - {new Date(conference.end_date).toLocaleDateString()}
+            </p>
+            <p class="text-sm text-gray-500 mt-1">{conference.location}</p>
+          </div>
+        ) : (
+          <p class="text-gray-600">No upcoming conference scheduled</p>
+        )}
+      </div>
+
+      <!-- Board Members Card -->
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-primary-700">Board Members</h2>
+          <a href="/admin/board" class="text-primary-600 hover:text-primary-800">
+            Manage
+          </a>
+        </div>
+        <div>
+          <p class="text-3xl font-bold text-gray-700 mb-2">{boardMembers.length}</p>
+          <p class="text-gray-600">Active board members</p>
+        </div>
+      </div>
+
+      <!-- Hall of Fame Card -->
+      <div class="bg-white p-6 rounded-lg shadow-md">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-semibold text-primary-700">Hall of Fame</h2>
+          <a href="/admin/hall-of-fame" class="text-primary-600 hover:text-primary-800">
+            View All
+          </a>
+        </div>
+        <div>
+          <p class="text-3xl font-bold text-gray-700 mb-2">{nominations.length}</p>
+          <p class="text-gray-600">New nominations</p>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="bg-white p-6 rounded-lg shadow-md lg:col-span-3">
+        <h2 class="text-xl font-semibold text-primary-700 mb-4">Quick Actions</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <a 
+            href="/admin/conferences/new"
+            class="flex items-center justify-center p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+          >
+            <span class="text-primary-700">Create New Conference</span>
+          </a>
+          <a 
+            href="/admin/board/new"
+            class="flex items-center justify-center p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+          >
+            <span class="text-primary-700">Add Board Member</span>
+          </a>
+          <a 
+            href="/admin/users"
+            class="flex items-center justify-center p-4 bg-primary-50 rounded-lg hover:bg-primary-100 transition-colors"
+          >
+            <span class="text-primary-700">Manage Users</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Debug Info (hidden in production) -->
+    <div class="mt-8 p-4 bg-gray-100 rounded-lg">
+      <h3 class="font-bold mb-2">Debug Info</h3>
+      <pre class="text-xs overflow-auto">{JSON.stringify({ user, authCookie: !!authCookie }, null, 2)}</pre>
+    </div>
+  </div>
+</Layout>

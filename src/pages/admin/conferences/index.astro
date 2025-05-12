@@ -1,0 +1,104 @@
+---
+import Layout from '../../../layouts/Layout.astro';
+import AdminNav from '../../../components/AdminNav.astro';
+import { getLatestConference } from '../../../lib/db';
+
+// Check authentication
+const userCookie = Astro.cookies.get('user');
+let user = null;
+try {
+  user = userCookie ? JSON.parse(userCookie.value) : null;
+} catch (error) {
+  console.error('Error parsing user cookie:', error);
+}
+
+if (!user || user.role !== 'admin') {
+  return Astro.redirect('/login');
+}
+
+// Get current conference data
+let conference = null;
+let error = null;
+try {
+  conference = await getLatestConference();
+} catch (e) {
+  error = e instanceof Error ? e.message : 'Failed to load conference data';
+}
+---
+
+<Layout title="Conference Management">
+  <AdminNav currentPath="/admin/conferences" />
+  
+  <div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-8">
+      <h1 class="text-2xl font-bold text-gray-900">Conference Management</h1>
+      <a 
+        href="/admin/conferences/new"
+        class="bg-primary-600 text-white px-4 py-2 rounded-md hover:bg-primary-700 transition-colors"
+      >
+        Create New Conference
+      </a>
+    </div>
+
+    {error && (
+      <div class="bg-red-50 border-l-4 border-red-400 p-4 mb-8">
+        <p class="text-red-700">{error}</p>
+      </div>
+    )}
+
+    {conference && (
+      <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="p-6">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-xl font-semibold text-gray-900 mb-2">{conference.name}</h2>
+              <p class="text-gray-600">
+                {new Date(conference.start_date).toLocaleDateString()} - {new Date(conference.end_date).toLocaleDateString()}
+              </p>
+            </div>
+            <a 
+              href={`/admin/conferences/${conference.id}/edit`}
+              class="text-primary-600 hover:text-primary-800"
+            >
+              Edit
+            </a>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h3 class="text-sm font-medium text-gray-500">Location</h3>
+              <p class="mt-1">{conference.location}</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-medium text-gray-500">Price</h3>
+              <p class="mt-1">${conference.price}</p>
+            </div>
+            <div>
+              <h3 class="text-sm font-medium text-gray-500">Maximum Attendees</h3>
+              <p class="mt-1">{conference.max_attendees || 'Unlimited'}</p>
+            </div>
+          </div>
+
+          {conference.description && (
+            <div class="mt-6">
+              <h3 class="text-sm font-medium text-gray-500">Description</h3>
+              <p class="mt-1 text-gray-600">{conference.description}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    )}
+
+    {!conference && !error && (
+      <div class="text-center py-12">
+        <p class="text-gray-600">No conference is currently scheduled.</p>
+        <a 
+          href="/admin/conferences/new"
+          class="inline-block mt-4 text-primary-600 hover:text-primary-800"
+        >
+          Create your first conference
+        </a>
+      </div>
+    )}
+  </div>
+</Layout>

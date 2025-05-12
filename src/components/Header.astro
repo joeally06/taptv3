@@ -1,0 +1,160 @@
+---
+import Dropdown from './Dropdown.astro';
+
+const navItems = [
+  {
+    title: "Events",
+    items: [
+      { title: "Conference & Trade Show", href: "#conference" },
+      { title: "Regional Luncheons", href: "#luncheons" },
+      { title: "TSBTA Workshop", href: "https://www.taptworkshop.com/" }
+    ]
+  },
+  {
+    title: "Hall of Fame",
+    items: [
+      { title: "Members", href: "/hall-of-fame" },
+      { title: "Nominate", href: "/hall-of-fame-nomination" }
+    ]
+  },
+  {
+    title: "Resources",
+    items: [
+      { title: "School Districts", href: "/school-districts" },
+      { title: "CDL Information", href: "https://digitaltennessee.tnsos.gov/comm_driver_license_manual/1/" },
+      { title: "Conference Agenda", href: "https://www.tapt.org/%5Ffiles/ugd/307eed%5F36591c88a0d2410ca280e16fb2737f68.pdf" },
+      { title: "House Recognition", href: "https://www.capitol.tn.gov/Bills/114/Bill/HJR0055.pdf" },
+      { title: "Featured District", href: "https://www.cmcss.net/operations/" },
+      { title: "Vehicle Grant Program", href: "https://www.tn.gov/environment/program-areas/energy/state-energy-office--seo-/programs-projects/programs-and-projects/sustainable-transportation-and-alternative-fuels/sustainable-transportation-and-alternative-fuels/tennessee-and-the-volkswagen-diesel-settlement1/project-solicitations/medium--and-heavy-duty-vehicles-grant-program.html" },
+      { title: "Certificate of Eligibility", href: "https://www.tapt.org/new-form-post" },
+      { title: "Scholarship Application", href: "/scholarship" }
+    ]
+  },
+  {
+    title: "Sponsors",
+    items: [
+      { title: "Our Sponsors", href: "#sponsors" },
+      { title: "Become a Sponsor", href: "/become-sponsor" }
+    ]
+  },
+  {
+    title: "About",
+    items: [
+      { title: "Mission", href: "#mission" },
+      { title: "Board of Directors", href: "/board" },
+      { title: "Advisory Board", href: "/advisory-board" }
+    ]
+  }
+];
+---
+
+<header class="sticky top-0 z-50 w-full bg-white/95 backdrop-blur shadow-sm transition-all duration-200">
+  <div class="container mx-auto px-4 py-2 flex flex-col md:flex-row justify-between items-center">
+    <div class="flex items-center gap-4">
+      <a href="/" class="flex items-center py-2">
+        <img 
+          src="/images/taptlogo.png" 
+          alt="TAPT Logo" 
+          class="h-10 md:h-14"
+          width="100"
+          height="42"
+        />
+      </a>
+      <div class="hidden md:block">
+        <p class="text-sm font-semibold text-primary-700">Tennessee Association of Pupil Transportation</p>
+        <p class="text-xs text-gray-600">Student Safety is Our Priority</p>
+      </div>
+    </div>
+    
+    <!-- Mobile menu button -->
+    <div class="md:hidden">
+      <button id="mobile-menu-button" class="p-2 text-primary-700 hover:text-primary-500 focus:outline-none">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Desktop navigation -->
+    <nav class="hidden md:flex items-center gap-6">
+      {navItems.map(item => (
+        <Dropdown title={item.title} items={item.items} />
+      ))}
+      <a href="#contact" class="px-4 py-2 text-white bg-primary-600 rounded-md hover:bg-primary-700 transition-colors">
+        Contact
+      </a>
+    </nav>
+  </div>
+  
+  <!-- Mobile navigation -->
+  <div id="mobile-menu" class="hidden md:hidden bg-white border-t border-gray-200">
+    <div class="container mx-auto px-4 py-2 space-y-2">
+      {navItems.map(category => (
+        <div class="py-2">
+          <button class="mobile-dropdown-button flex justify-between items-center w-full text-left px-2 py-1 text-primary-700 font-medium">
+            {category.title}
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+            </svg>
+          </button>
+          <div class="mobile-dropdown-content hidden pl-4 space-y-1 mt-1">
+            {category.items.map(item => (
+              <a href={item.href} class="block py-1 text-gray-700 hover:text-primary-600">{item.title}</a>
+            ))}
+          </div>
+        </div>
+      ))}
+      <a href="#contact" class="block px-4 py-2 text-center text-white bg-primary-600 rounded-md hover:bg-primary-700 transition-colors">
+        Contact
+      </a>
+    </div>
+  </div>
+</header>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Mobile menu toggle
+    const mobileMenuButton = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    
+    mobileMenuButton?.addEventListener('click', () => {
+      mobileMenu?.classList.toggle('hidden');
+    });
+    
+    // Mobile dropdown toggles
+    const mobileDropdownButtons = document.querySelectorAll('.mobile-dropdown-button');
+    mobileDropdownButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const content = button.nextElementSibling;
+        content?.classList.toggle('hidden');
+      });
+    });
+    
+    // Sticky header behavior
+    let lastScrollY = window.scrollY;
+    
+    window.addEventListener('scroll', () => {
+      const header = document.querySelector('header');
+      if (!header) return;
+      
+      if (window.scrollY > 100) {
+        header.classList.add('shadow-md');
+        header.classList.remove('shadow-sm');
+        
+        if (window.scrollY > lastScrollY) {
+          // Scrolling down
+          header.style.transform = 'translateY(-100%)';
+        } else {
+          // Scrolling up
+          header.style.transform = 'translateY(0)';
+        }
+      } else {
+        header.classList.remove('shadow-md');
+        header.classList.add('shadow-sm');
+        header.style.transform = 'translateY(0)';
+      }
+      
+      lastScrollY = window.scrollY;
+    });
+  });
+</script>
