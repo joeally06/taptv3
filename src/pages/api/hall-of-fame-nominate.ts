@@ -1,8 +1,8 @@
 import type { APIRoute } from 'astro';
-import { supabase } from '../../../lib/supabase';
-import { logger } from '../../../lib/utils/logger.js';
-import { validate, rules } from '../../../lib/validation.js';
-import { ValidationError } from '../../../lib/errors/AppError.js';
+import { supabase } from '../../lib/supabase';
+import { logger } from '../../lib/utils/logger.js';
+import { validate, rules } from '../../lib/validation.js';
+import { ValidationError } from '../../lib/errors/AppError.js';
 
 export const POST: APIRoute = async ({ request }) => {
   try {
